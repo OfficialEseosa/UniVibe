@@ -1,0 +1,42 @@
+name: univibe
+description: UniVibe – campus social network for students, built with Flutter and Firebase.
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Firebase
+  firebase_core: ^3.8.0
+  firebase_auth: ^5.3.4
+  cloud_firestore: ^5.5.3
+  firebase_storage: ^12.3.6
+  firebase_messaging: ^15.1.5
+  cloud_functions: ^5.1.5
+
+  # UI / utilities
+  image_picker: ^1.1.2
+  cached_network_image: ^3.4.1
+  uuid: ^4.5.1
+  intl: ^0.19.0
+  provider: ^6.1.2
+  flutter_local_notifications: ^18.0.0
+  timeago: ^3.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  mockito: ^5.4.5
+  build_runner: ^2.4.13
+  fake_cloud_firestore: ^3.0.3
+
+flutter:
+  uses-material-design: true

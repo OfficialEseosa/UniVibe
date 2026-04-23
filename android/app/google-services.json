@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "111321626592",
+    "project_id": "univibe-csc4360",
+    "storage_bucket": "univibe-csc4360.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:111321626592:android:7ffb3b34f67d5d704f5d85",
+        "android_client_info": {
+          "package_name": "com.rapliyah.univibe"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCnVnmVNNl1lK5BI5W0OrufJkN0B29osz0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
