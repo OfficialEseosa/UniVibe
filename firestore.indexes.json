@@ -28,6 +28,7 @@
       "collectionGroup": "suggestions",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "matchUid", "order": "ASCENDING" },
         { "fieldPath": "score", "order": "DESCENDING" }
       ]
     }
