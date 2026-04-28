@@ -6,11 +6,13 @@ import '../../repositories/message_repository.dart';
 class ChatScreen extends StatefulWidget {
   final String currentUid;
   final String recipientUid;
+  final String? recipientName;
 
   const ChatScreen({
     super.key,
     required this.currentUid,
     required this.recipientUid,
+    this.recipientName,
   });
 
   @override
@@ -65,7 +67,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final repo = context.read<MessageRepository>();
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.recipientUid)),
+      appBar: AppBar(title: Text(widget.recipientName ?? widget.recipientUid)),
       body: Column(
         children: [
           Expanded(

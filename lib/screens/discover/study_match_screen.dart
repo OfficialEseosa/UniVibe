@@ -114,6 +114,7 @@ class _MatchTile extends StatelessWidget {
           builder: (_) => ChatScreen(
             currentUid: currentUid,
             recipientUid: match.matchUid,
+            recipientName: match.matchName,
           ),
         ),
       ),
