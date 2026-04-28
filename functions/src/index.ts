@@ -1,5 +1,9 @@
 import * as admin from "firebase-admin";
-import * as functions from "firebase-functions";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import {
+  onDocumentCreated,
+  onDocumentUpdated,
+} from "firebase-functions/v2/firestore";
 
 admin.initializeApp();
 
@@ -22,68 +26,66 @@ const ACADEMIC_KEYWORDS = [
 
 // ── Study-partner suggestion engine ──────────────────────────────────────────
 
-export const computeStudyMatches = functions.https.onCall(
-  async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Must be signed in to compute study matches."
-      );
-    }
-
-    const uid = context.auth.uid;
-    const currentSnap = await db.collection("users").doc(uid).get();
-    const current = currentSnap.data();
-    if (!current) {
-      throw new functions.https.HttpsError("not-found", "User profile not found.");
-    }
-
-    const allUsersSnap = await db.collection("users").get();
-    const results: Array<{ uid: string; score: number; data: object }> = [];
-
-    for (const doc of allUsersSnap.docs) {
-      if (doc.id === uid) continue;
-      const candidate = doc.data();
-      const score = scoreCandidate(current, candidate);
-      if (score > 0) {
-        results.push({ uid: doc.id, score, data: candidate });
-      }
-    }
-
-    results.sort((a, b) => b.score - a.score);
-    const top = results.slice(0, 10);
-
-    const batch = db.batch();
-    for (const match of top) {
-      const candidate = match.data as Record<string, unknown>;
-      const ref = db
-        .collection("studyMatches")
-        .doc(uid)
-        .collection("suggestions")
-        .doc(match.uid);
-
-      const sharedCourses = (current.courses as string[]).filter((c: string) =>
-        ((candidate.courses as string[]) ?? []).includes(c)
-      );
-      const overlapDays = computeOverlapDays(
-        current.availability ?? {},
-        candidate.availability ?? {}
-      );
-
-      batch.set(ref, {
-        matchName: candidate.displayName ?? "",
-        matchPhotoUrl: candidate.profilePhotoUrl ?? "",
-        score: match.score,
-        sharedCourses,
-        availabilityOverlap: Object.fromEntries(overlapDays.map((d) => [d, true])),
-        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    }
-    await batch.commit();
-
-    return { matched: top.length };
+export const computeStudyMatches = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError(
+      "unauthenticated",
+      "Must be signed in to compute study matches."
+    );
   }
-);
+
+  const uid = request.auth.uid;
+  const currentSnap = await db.collection("users").doc(uid).get();
+  const current = currentSnap.data() as Record<string, unknown> | undefined;
+  if (!current) {
+    throw new HttpsError("not-found", "User profile not found.");
+  }
+
+  const allUsersSnap = await db.collection("users").get();
+  const results: Array<{ uid: string; score: number; data: Record<string, unknown> }> = [];
+
+  for (const doc of allUsersSnap.docs) {
+    if (doc.id === uid) continue;
+    const candidate = doc.data() as Record<string, unknown>;
+    const score = scoreCandidate(current, candidate);
+    if (score > 0) {
+      results.push({ uid: doc.id, score, data: candidate });
+    }
+  }
+
+  results.sort((a, b) => b.score - a.score);
+  const top = results.slice(0, 10);
+
+  const batch = db.batch();
+  for (const match of top) {
+    const candidate = match.data;
+    const ref = db
+      .collection("studyMatches")
+      .doc(uid)
+      .collection("suggestions")
+      .doc(match.uid);
+
+    const sharedCourses = ((current.courses as string[]) ?? []).filter((c) =>
+      ((candidate.courses as string[]) ?? []).includes(c)
+    );
+    const overlapDays = computeOverlapDays(
+      (current.availability as Record<string, unknown>) ?? {},
+      (candidate.availability as Record<string, unknown>) ?? {}
+    );
+
+    batch.set(ref, {
+      matchName: candidate.displayName ?? "",
+      matchPhotoUrl: candidate.profilePhotoUrl ?? "",
+      score: match.score,
+      sharedCourses,
+      availabilityOverlap: Object.fromEntries(overlapDays.map((d) => [d, true])),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+  await batch.commit();
+
+  return { matched: top.length };
+});
 
 function scoreCandidate(
   current: Record<string, unknown>,
@@ -120,7 +122,7 @@ function computeOverlapDays(
     const bSlots = b[day];
     if (aSlots == null || bSlots == null) return false;
     if (Array.isArray(aSlots) && Array.isArray(bSlots)) {
-      return aSlots.some((s) => bSlots.includes(s));
+      return aSlots.some((s) => (bSlots as unknown[]).includes(s));
     }
     return aSlots === true && bSlots === true;
   });
@@ -138,56 +140,59 @@ function computeBioScore(bio1: string, bio2: string): number {
 
 // ── FCM: notify on new message ────────────────────────────────────────────────
 
-export const onNewMessage = functions.firestore
-  .document("messages/{threadId}/messages/{msgId}")
-  .onCreate(async (snap, context) => {
-    const message = snap.data();
-    const threadId = context.params.threadId as string;
+export const onNewMessage = onDocumentCreated(
+  "messages/{threadId}/messages/{msgId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const message = snap.data() as Record<string, unknown>;
+    const threadId = event.params.threadId;
 
     const threadSnap = await db.collection("messages").doc(threadId).get();
     const thread = threadSnap.data();
     if (!thread) return;
 
-    const participants = (thread.participants as string[]) ?? [];
-    const senderUid = message.senderUid as string;
+    const participants = (thread["participants"] as string[]) ?? [];
+    const senderUid = message["senderUid"] as string;
 
     for (const uid of participants) {
       if (uid === senderUid) continue;
 
       const userSnap = await db.collection("users").doc(uid).get();
-      const token = userSnap.data()?.fcmToken as string | undefined;
+      const token = userSnap.data()?.["fcmToken"] as string | undefined;
       if (!token) continue;
 
       const senderSnap = await db.collection("users").doc(senderUid).get();
-      const senderName = (senderSnap.data()?.displayName as string) ?? "Someone";
+      const senderName = (senderSnap.data()?.["displayName"] as string) ?? "Someone";
 
       await messaging.send({
         token,
         notification: {
           title: `New message from ${senderName}`,
-          body: (message.text as string).slice(0, 100),
+          body: ((message["text"] as string) ?? "").slice(0, 100),
         },
         data: { type: "message", threadId, senderUid },
       });
     }
-  });
+  }
+);
 
 // ── FCM: notify on new like ───────────────────────────────────────────────────
 
-export const onPostLiked = functions.firestore
-  .document("posts/{postId}")
-  .onUpdate(async (change, context) => {
-    const before = change.before.data();
-    const after = change.after.data();
+export const onPostLiked = onDocumentUpdated(
+  "posts/{postId}",
+  async (event) => {
+    const before = event.data?.before.data() as Record<string, unknown> | undefined;
+    const after = event.data?.after.data() as Record<string, unknown> | undefined;
+    if (!before || !after) return;
 
-    if ((after.likesCount as number) <= (before.likesCount as number)) return;
+    if (((after["likesCount"] as number) ?? 0) <= ((before["likesCount"] as number) ?? 0)) return;
 
-    const postId = context.params.postId as string;
-    const authorUid = after.authorUid as string;
+    const postId = event.params.postId;
+    const authorUid = after["authorUid"] as string;
 
-    // Identify who added the like
-    const beforeLikedBy = new Set(before.likedBy as string[]);
-    const newLiker = (after.likedBy as string[]).find(
+    const beforeLikedBy = new Set((before["likedBy"] as string[]) ?? []);
+    const newLiker = ((after["likedBy"] as string[]) ?? []).find(
       (uid) => !beforeLikedBy.has(uid)
     );
     if (!newLiker || newLiker === authorUid) return;
@@ -197,11 +202,11 @@ export const onPostLiked = functions.firestore
       db.collection("users").doc(newLiker).get(),
     ]);
 
-    const token = authorSnap.data()?.fcmToken as string | undefined;
+    const token = authorSnap.data()?.["fcmToken"] as string | undefined;
     if (!token) return;
 
-    const likerName = (likerSnap.data()?.displayName as string) ?? "Someone";
-    const postPreview = ((after.content as string) ?? "").slice(0, 50);
+    const likerName = (likerSnap.data()?.["displayName"] as string) ?? "Someone";
+    const postPreview = ((after["content"] as string) ?? "").slice(0, 50);
 
     await messaging.send({
       token,
@@ -211,36 +216,39 @@ export const onPostLiked = functions.firestore
       },
       data: { type: "like", postId },
     });
-  });
+  }
+);
 
 // ── FCM: notify on event RSVP ─────────────────────────────────────────────────
 
-export const onEventRsvp = functions.firestore
-  .document("events/{eventId}")
-  .onUpdate(async (change, context) => {
-    const before = change.before.data();
-    const after = change.after.data();
+export const onEventRsvp = onDocumentUpdated(
+  "events/{eventId}",
+  async (event) => {
+    const before = event.data?.before.data() as Record<string, unknown> | undefined;
+    const after = event.data?.after.data() as Record<string, unknown> | undefined;
+    if (!before || !after) return;
 
-    if ((after.rsvpCount as number) <= (before.rsvpCount as number)) return;
+    if (((after["rsvpCount"] as number) ?? 0) <= ((before["rsvpCount"] as number) ?? 0)) return;
 
-    const eventId = context.params.eventId as string;
-    const clubId = after.clubId as string;
+    const eventId = event.params.eventId;
+    const clubId = after["clubId"] as string | undefined;
     if (!clubId) return;
 
     const clubSnap = await db.collection("clubs").doc(clubId).get();
-    const adminUid = clubSnap.data()?.adminUid as string | undefined;
+    const adminUid = clubSnap.data()?.["adminUid"] as string | undefined;
     if (!adminUid) return;
 
     const adminSnap = await db.collection("users").doc(adminUid).get();
-    const token = adminSnap.data()?.fcmToken as string | undefined;
+    const token = adminSnap.data()?.["fcmToken"] as string | undefined;
     if (!token) return;
 
     await messaging.send({
       token,
       notification: {
         title: "New RSVP on your event",
-        body: `Someone just RSVP'd to "${after.title as string}"`,
+        body: `Someone just RSVP'd to "${after["title"] as string}"`,
       },
       data: { type: "rsvp", eventId },
     });
-  });
+  }
+);
