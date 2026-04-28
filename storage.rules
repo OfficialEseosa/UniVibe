@@ -1,0 +1,46 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Profile photos ────────────────────────────────────────────────────────
+    match /profiles/{uid}/{allPaths=**} {
+      // Any authenticated user may view profile photos.
+      allow read: if request.auth != null;
+
+      // Only the owning user may upload or overwrite their own profile photo.
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // ── Post images ───────────────────────────────────────────────────────────
+    match /posts/{authorUid}/{allPaths=**} {
+      allow read: if request.auth != null;
+
+      allow write: if request.auth != null
+        && request.auth.uid == authorUid
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // ── Event banners ─────────────────────────────────────────────────────────
+    match /events/{eventId}/{allPaths=**} {
+      allow read: if request.auth != null;
+
+      // Any authenticated user may upload event banners (event creation is open).
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // ── Club banners ──────────────────────────────────────────────────────────
+    match /clubs/{clubId}/{allPaths=**} {
+      allow read: if request.auth != null;
+
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

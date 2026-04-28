@@ -1,0 +1,149 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    function isParticipant(participants) {
+      return request.auth.uid in participants;
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+
+    match /users/{uid} {
+      // Any authenticated user may read another user's public profile.
+      allow read: if isSignedIn();
+
+      // Only the owning user may write their own document.
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid);
+      allow delete: if isOwner(uid);
+    }
+
+    // ── Posts ─────────────────────────────────────────────────────────────────
+
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+
+      // Any authenticated user may create a post.
+      allow create: if isSignedIn()
+        && request.resource.data.authorUid == request.auth.uid;
+
+      // Only the post author may update or delete their post.
+      allow update: if isSignedIn()
+        && (resource.data.authorUid == request.auth.uid
+            || onlyLikeFieldsChanged());
+      allow delete: if isSignedIn()
+        && resource.data.authorUid == request.auth.uid;
+
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn()
+          && request.resource.data.authorUid == request.auth.uid;
+        allow update: if isSignedIn()
+          && (resource.data.authorUid == request.auth.uid
+              || onlyCommentLikeFieldsChanged());
+        allow delete: if isSignedIn()
+          && resource.data.authorUid == request.auth.uid;
+      }
+    }
+
+    // ── Messages ──────────────────────────────────────────────────────────────
+
+    match /messages/{threadId} {
+      // Only participants may read the thread metadata.
+      allow read: if isSignedIn()
+        && isParticipant(resource.data.participants);
+
+      // A user may create a thread only if they are a participant.
+      allow create: if isSignedIn()
+        && isParticipant(request.resource.data.participants);
+
+      // Only participants may update thread metadata (e.g. unread counts).
+      allow update: if isSignedIn()
+        && isParticipant(resource.data.participants);
+
+      match /messages/{msgId} {
+        allow read: if isSignedIn()
+          && isParticipant(
+               get(/databases/$(database)/documents/messages/$(threadId)).data.participants
+             );
+        allow create: if isSignedIn()
+          && request.resource.data.senderUid == request.auth.uid
+          && isParticipant(
+               get(/databases/$(database)/documents/messages/$(threadId)).data.participants
+             );
+        allow update, delete: if false;
+      }
+    }
+
+    // ── Events ────────────────────────────────────────────────────────────────
+
+    match /events/{eventId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn()
+        && (resource.data.clubId != null || onlyRsvpFieldsChanged());
+      allow delete: if isSignedIn()
+        && isEventAdmin(resource.data.clubId);
+    }
+
+    // ── Clubs ─────────────────────────────────────────────────────────────────
+
+    match /clubs/{clubId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.adminUid == request.auth.uid;
+      allow update: if isSignedIn()
+        && (resource.data.adminUid == request.auth.uid
+            || onlyMembersFieldChanged());
+      allow delete: if isSignedIn()
+        && resource.data.adminUid == request.auth.uid;
+    }
+
+    // ── Study Matches ─────────────────────────────────────────────────────────
+
+    match /studyMatches/{uid}/suggestions/{matchUid} {
+      allow read: if isOwner(uid);
+      // Writes come from Cloud Functions (server-side) or the owning user.
+      allow write: if isOwner(uid);
+    }
+
+    // ── Field-level helper functions ──────────────────────────────────────────
+
+    function onlyLikeFieldsChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['likedBy', 'likesCount']);
+    }
+
+    function onlyCommentLikeFieldsChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['likedBy', 'likesCount']);
+    }
+
+    function onlyRsvpFieldsChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['rsvpedBy', 'rsvpCount']);
+    }
+
+    function onlyMembersFieldChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['members']);
+    }
+
+    function isEventAdmin(clubId) {
+      return clubId != null
+        && get(/databases/$(database)/documents/clubs/$(clubId)).data.adminUid
+           == request.auth.uid;
+    }
+  }
+}
