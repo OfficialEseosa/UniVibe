@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/user_model.dart';
 import '../../services/firestore_service.dart';
 import '../../services/storage_service.dart';
@@ -21,7 +22,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   File? _newPhoto;
   bool _saving = false;
 
-  // Availability: day → set of selected slots
   static const _days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
   static const _dayLabels = {
     'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu',
@@ -119,97 +119,164 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Profile'),
+        centerTitle: false,
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
             child: _saving
-                ? const SizedBox(
+                ? SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: cs.primary,
+                    ),
                   )
                 : const Text('Save'),
           ),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
         children: [
-          // Avatar
+          // Avatar section
           Center(
             child: GestureDetector(
               onTap: _pickPhoto,
-              child: CircleAvatar(
-                radius: 48,
-                backgroundImage: _newPhoto != null
-                    ? FileImage(_newPhoto!)
-                    : (widget.user.profilePhotoUrl.isNotEmpty
-                        ? NetworkImage(widget.user.profilePhotoUrl)
-                            as ImageProvider
-                        : null),
-                child: _newPhoto == null && widget.user.profilePhotoUrl.isEmpty
-                    ? const Icon(Icons.camera_alt, size: 32)
-                    : null,
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: cs.primaryContainer,
+                    ),
+                    child: _newPhoto != null
+                        ? ClipOval(
+                            child: Image.file(
+                              _newPhoto!,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : (widget.user.profilePhotoUrl.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: widget.user.profilePhotoUrl,
+                                imageBuilder: (context, imageProvider) =>
+                                    ClipOval(
+                                  child: Image(
+                                    image: imageProvider,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                placeholder: (context, url) => Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: cs.primary,
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Center(
+                                  child: Text(
+                                    widget.user.displayName[0].toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.w600,
+                                      color: cs.onPrimaryContainer,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Center(
+                                child: Text(
+                                  widget.user.displayName[0].toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w600,
+                                    color: cs.onPrimaryContainer,
+                                  ),
+                                ),
+                              )),
+                  ),
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: cs.primary,
+                    ),
+                    child: Icon(
+                      Icons.camera_alt_rounded,
+                      size: 16,
+                      color: cs.onPrimary,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
           const SizedBox(height: 8),
-          const Center(
-            child: Text('Tap to change photo',
-                style: TextStyle(fontSize: 12, color: Colors.grey)),
+          Center(
+            child: Text(
+              'Tap to change photo',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+            ),
           ),
           const SizedBox(height: 24),
 
           // Display name
-          TextFormField(
+          TextField(
             controller: _nameCtrl,
             decoration: const InputDecoration(
               labelText: 'Display Name',
-              border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 16),
 
           // Bio
-          TextFormField(
+          TextField(
             controller: _bioCtrl,
             maxLines: 3,
             decoration: const InputDecoration(
               labelText: 'Bio',
-              border: OutlineInputBorder(),
+              hintText: 'Tell others about yourself',
             ),
           ),
           const SizedBox(height: 16),
 
           // Courses
-          TextFormField(
+          TextField(
             controller: _coursesCtrl,
             decoration: const InputDecoration(
-              labelText: 'Courses (comma-separated)',
+              labelText: 'Courses',
               hintText: 'CSC 4360, MATH 2420, BIO 1100',
-              border: OutlineInputBorder(),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
-          // Availability
-          Text('Study Availability',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleSmall
-                  ?.copyWith(fontWeight: FontWeight.bold)),
+          // Availability header
+          Text(
+            'Study Availability',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
           const SizedBox(height: 4),
           Text(
             'Select the days and times you are free to study.',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: Colors.grey),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+
+          // Availability grid
           ..._days.map((day) => _DayAvailabilityRow(
                 day: day,
                 label: _dayLabels[day]!,
@@ -252,18 +319,23 @@ class _DayAvailabilityRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
           SizedBox(
             width: 36,
-            child: Text(label,
-                style: const TextStyle(fontWeight: FontWeight.w600)),
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           Expanded(
             child: Wrap(
               spacing: 6,
+              runSpacing: 6,
               children: slots.map((slot) {
                 final isSelected = selected.contains(slot);
                 return FilterChip(
@@ -272,11 +344,14 @@ class _DayAvailabilityRow extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 11,
-                      color: isSelected ? cs.onPrimary : null,
+                      height: 1.2,
+                      color: isSelected ? cs.onPrimary : cs.onSurface,
+                      fontWeight: isSelected ? FontWeight.w500 : null,
                     ),
                   ),
                   selected: isSelected,
                   selectedColor: cs.primary,
+                  backgroundColor: cs.surfaceContainerHighest,
                   checkmarkColor: cs.onPrimary,
                   onSelected: (v) => onChanged(slot, v),
                 );

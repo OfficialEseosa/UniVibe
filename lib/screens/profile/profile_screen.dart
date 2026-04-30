@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/user_model.dart';
 import '../../repositories/auth_repository.dart';
 import '../../services/firestore_service.dart';
@@ -13,14 +14,16 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final firestoreService = context.read<FirestoreService>();
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
-        centerTitle: true,
+        centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Logout',
             onPressed: () => context.read<AuthRepository>().logout(),
           ),
         ],
@@ -28,58 +31,137 @@ class ProfileScreen extends StatelessWidget {
       body: StreamBuilder<UserModel>(
         stream: firestoreService.userStream(uid),
         builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
+          final user = snap.data;
+          if (user == null) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (!snap.hasData) return const Center(child: Text('Profile not found.'));
-          final user = snap.data!;
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                CircleAvatar(
-                  radius: 52,
-                  backgroundImage: user.profilePhotoUrl.isNotEmpty
-                      ? NetworkImage(user.profilePhotoUrl)
-                      : null,
-                  child: user.profilePhotoUrl.isEmpty
-                      ? Text(user.displayName[0].toUpperCase(),
-                          style: const TextStyle(fontSize: 36))
-                      : null,
+                // Avatar
+                Container(
+                  width: 104,
+                  height: 104,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: cs.primaryContainer,
+                  ),
+                  child: user.profilePhotoUrl.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: user.profilePhotoUrl,
+                          imageBuilder: (context, imageProvider) => Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              image: DecorationImage(
+                                image: imageProvider,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          placeholder: (context, url) => Center(
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: cs.primary,
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Center(
+                            child: Text(
+                              user.displayName[0].toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.w600,
+                                color: cs.onPrimaryContainer,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            user.displayName[0].toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 40,
+                              fontWeight: FontWeight.w600,
+                              color: cs.onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                ),
+                const SizedBox(height: 20),
+
+                // Name
+                Text(
+                  user.displayName,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                const SizedBox(height: 4),
+
+                // Email
+                Text(
+                  user.email,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
                 ),
                 const SizedBox(height: 12),
-                Text(user.displayName,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold)),
-                Text(user.email,
-                    style: Theme.of(context).textTheme.bodySmall),
-                const SizedBox(height: 8),
+
+                // Bio
                 if (user.bio.isNotEmpty)
-                  Text(user.bio, textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                FilledButton.tonal(
+                  Text(
+                    user.bio,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                const SizedBox(height: 20),
+
+                // Edit button
+                FilledButton.icon(
+                  icon: const Icon(Icons.edit_rounded),
+                  label: const Text('Edit Profile'),
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
                         builder: (_) => EditProfileScreen(user: user)),
                   ),
-                  child: const Text('Edit Profile'),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
+
+                // Courses section
                 if (user.courses.isNotEmpty) ...[
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('Courses',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
-                            ?.copyWith(fontWeight: FontWeight.bold)),
+                    child: Text(
+                      'Courses',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
+                    runSpacing: 8,
                     children: user.courses
-                        .map((c) => Chip(label: Text(c)))
+                        .map((course) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: cs.primaryContainer,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                course,
+                                style:
+                                    Theme.of(context).textTheme.labelSmall?.copyWith(
+                                          color: cs.onPrimaryContainer,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                              ),
+                            ))
                         .toList(),
                   ),
                 ],
