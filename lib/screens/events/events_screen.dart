@@ -36,15 +36,9 @@ class EventsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No upcoming events',
+                    'No upcoming events. Check back soon!',
                     style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Check back soon for new events!',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
@@ -220,11 +214,17 @@ class _EventCard extends StatelessWidget {
                                 ),
                       ),
                     ),
-                    FilledButton(
-                      onPressed: () =>
-                          repo.toggleRsvp(event.eventId, currentUid),
-                      child: Text(hasRsvp ? 'Cancel' : 'RSVP'),
-                    ),
+                    hasRsvp
+                        ? FilledButton.tonal(
+                            onPressed: () =>
+                                repo.toggleRsvp(event.eventId, currentUid),
+                            child: const Text('Going'),
+                          )
+                        : FilledButton(
+                            onPressed: () =>
+                                repo.toggleRsvp(event.eventId, currentUid),
+                            child: const Text('RSVP'),
+                          ),
                   ],
                 ),
               ],
