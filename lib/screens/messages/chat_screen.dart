@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/message_model.dart';
 import '../../repositories/message_repository.dart';
@@ -65,9 +66,13 @@ class _ChatScreenState extends State<ChatScreen> {
     final threadId = MessageThreadModel.buildThreadId(
         widget.currentUid, widget.recipientUid);
     final repo = context.read<MessageRepository>();
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.recipientName ?? widget.recipientUid)),
+      appBar: AppBar(
+        title: Text(widget.recipientName ?? widget.recipientUid),
+        centerTitle: false,
+      ),
       body: Column(
         children: [
           Expanded(
@@ -77,72 +82,131 @@ class _ChatScreenState extends State<ChatScreen> {
                 final messages = snap.data ?? [];
                 return ListView.builder(
                   controller: _scrollCtrl,
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                   itemCount: messages.length,
                   itemBuilder: (context, i) {
                     final msg = messages[i];
                     final isMe = msg.senderUid == widget.currentUid;
-                    return Align(
-                      alignment: isMe
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.72,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isMe
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          msg.text,
-                          style: TextStyle(
-                            color: isMe
-                                ? Theme.of(context).colorScheme.onPrimary
-                                : null,
+                    final prevMsg = i > 0 ? messages[i - 1] : null;
+                    final showTimestamp = prevMsg == null ||
+                        msg.timestamp.difference(prevMsg.timestamp).inMinutes >
+                            5;
+
+                    return Column(
+                      crossAxisAlignment: isMe
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
+                      children: [
+                        if (showTimestamp) ...[
+                          const SizedBox(height: 8),
+                          Center(
+                            child: Text(
+                              DateFormat('HH:mm').format(msg.timestamp),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                        Align(
+                          alignment: isMe
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
+                            constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.75,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isMe
+                                  ? cs.primary
+                                  : cs.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: Text(
+                              msg.text,
+                              style: TextStyle(
+                                color: isMe ? cs.onPrimary : cs.onSurface,
+                                fontSize: 15,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     );
                   },
                 );
               },
             ),
           ),
-          Padding(
-            padding: EdgeInsets.only(
-              left: 12, right: 8,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 8,
-              top: 8,
-            ),
-            child: Row(children: [
-              Expanded(
-                child: TextField(
-                  controller: _textCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Message…',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _send(),
+
+          // Message input bar
+          Container(
+            decoration: BoxDecoration(
+              color: cs.surface,
+              border: Border(
+                top: BorderSide(
+                  color: cs.outlineVariant,
+                  width: 0.5,
                 ),
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: _sending
-                    ? const SizedBox(
-                        width: 18, height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.send),
-                onPressed: _sending ? null : _send,
-              ),
-            ]),
+            ),
+            padding: EdgeInsets.fromLTRB(
+              12,
+              8,
+              8,
+              MediaQuery.of(context).viewInsets.bottom + 8,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _textCtrl,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _send(),
+                    maxLines: 1,
+                    decoration: InputDecoration(
+                      hintText: 'Message…',
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    icon: _sending
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: cs.primary,
+                            ),
+                          )
+                        : Icon(
+                            Icons.send_rounded,
+                            size: 20,
+                            color: cs.primary,
+                          ),
+                    onPressed: _sending ? null : _send,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
