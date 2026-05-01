@@ -10,6 +10,22 @@ import 'edit_profile_screen.dart';
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
+  static const _dayOrder = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  static const _dayLabels = {
+    'mon': 'Mon',
+    'tue': 'Tue',
+    'wed': 'Wed',
+    'thu': 'Thu',
+    'fri': 'Fri',
+    'sat': 'Sat',
+    'sun': 'Sun',
+  };
+  static const _slotLabels = {
+    'morning': 'Morning',
+    'afternoon': 'Afternoon',
+    'evening': 'Evening',
+  };
+
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser!.uid;
@@ -164,12 +180,84 @@ class ProfileScreen extends StatelessWidget {
                             ))
                         .toList(),
                   ),
+                  const SizedBox(height: 28),
                 ],
+
+                // Availability summary
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Availability',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (_availabilitySummary(user.availability).isEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'No study times set yet.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                    ),
+                  )
+                else
+                  Column(
+                    children: _availabilitySummary(user.availability)
+                        .map(
+                          (line) => Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: cs.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              line,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
               ],
             ),
           );
         },
       ),
     );
+  }
+
+  List<String> _availabilitySummary(Map<String, dynamic> availability) {
+    final lines = <String>[];
+    for (final day in _dayOrder) {
+      final rawSlots = availability[day];
+      if (rawSlots is! List) continue;
+
+      final labels = rawSlots
+          .whereType<String>()
+          .map((slot) => _slotLabels[slot] ?? slot)
+          .toList();
+      if (labels.isEmpty) continue;
+
+      final dayLabel = _dayLabels[day] ?? day;
+      lines.add('$dayLabel: ${labels.join(' • ')}');
+    }
+    return lines;
   }
 }

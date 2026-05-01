@@ -319,46 +319,62 @@ class _DayAvailabilityRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 36,
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: cs.outlineVariant),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 36,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: slots.map((slot) {
-                final isSelected = selected.contains(slot);
-                return FilterChip(
-                  label: Text(
-                    slotLabels[slot]!,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 11,
-                      height: 1.2,
-                      color: isSelected ? cs.onPrimary : cs.onSurface,
-                      fontWeight: isSelected ? FontWeight.w500 : null,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: slots.map((slot) {
+                  final isSelected = selected.contains(slot);
+                  return FilterChip(
+                    label: Text(
+                      slotLabels[slot]!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11,
+                        height: 1.2,
+                        color: isSelected ? cs.onPrimary : cs.onSurface,
+                        fontWeight: isSelected ? FontWeight.w600 : null,
+                      ),
                     ),
-                  ),
-                  selected: isSelected,
-                  selectedColor: cs.primary,
-                  backgroundColor: cs.surfaceContainerHighest,
-                  checkmarkColor: cs.onPrimary,
-                  onSelected: (v) => onChanged(slot, v),
-                );
-              }).toList(),
+                    selected: isSelected,
+                    selectedColor: cs.primary,
+                    backgroundColor: cs.surfaceContainerHighest,
+                    side: BorderSide(
+                      color: isSelected ? cs.primary : cs.outlineVariant,
+                    ),
+                    showCheckmark: false,
+                    onSelected: (v) => onChanged(slot, v),
+                  );
+                }).toList(),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
