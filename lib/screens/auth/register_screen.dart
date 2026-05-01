@@ -28,13 +28,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       await context.read<AuthRepository>().register(
-        email: _emailCtrl.text.trim(),
-        password: _passwordCtrl.text,
-        displayName: _nameCtrl.text.trim(),
-      );
+            email: _emailCtrl.text.trim(),
+            password: _passwordCtrl.text,
+            displayName: _nameCtrl.text.trim(),
+          );
     } catch (e) {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -50,53 +53,74 @@ class _RegisterScreenState extends State<RegisterScreen> {
       backgroundColor: const Color(0xFF1A73E8),
       body: Column(
         children: [
-          // Blue header
+          // ── Blue header ──────────────────────────────────────────────
           Expanded(
             flex: 2,
             child: SafeArea(
               bottom: false,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.school_rounded,
-                          color: Color(0xFF1A73E8), size: 44),
+              child: Stack(
+                children: [
+                  // Back button
+                  Positioned(
+                    top: 4,
+                    left: 4,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                          color: Colors.white, size: 20),
+                      onPressed: () => Navigator.of(context).pop(),
                     ),
-                    const SizedBox(height: 18),
-                    const Text('Join UniVibe',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                        )),
-                    const SizedBox(height: 6),
-                    Text('Create your campus account',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 14,
-                        )),
-                  ],
-                ),
+                  ),
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 68,
+                          height: 68,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.school_rounded,
+                            color: Color(0xFF1A73E8),
+                            size: 38,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        const Text(
+                          'Join UniVibe',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          'Create your campus account',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
 
-          // White card form
+          // ── White card form ──────────────────────────────────────────
           Expanded(
             flex: 4,
             child: Container(
@@ -112,23 +136,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('Create account',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: cs.onSurface,
-                          )),
+                      Text(
+                        'Get started',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: cs.onSurface,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text('Use your .edu email to get started',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: cs.onSurface.withValues(alpha: 0.55),
-                          )),
+                      Text(
+                        'Use your .edu email to verify you\'re a student',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: cs.onSurface.withValues(alpha: 0.55),
+                        ),
+                      ),
                       const SizedBox(height: 24),
 
+                      // Name
                       TextFormField(
                         controller: _nameCtrl,
                         textInputAction: TextInputAction.next,
+                        textCapitalization: TextCapitalization.words,
                         decoration: const InputDecoration(
                           labelText: 'Full Name',
                           prefixIcon: Icon(Icons.person_outline),
@@ -138,20 +168,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 14),
 
+                      // Email
                       TextFormField(
                         controller: _emailCtrl,
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         decoration: const InputDecoration(
-                          labelText: 'Campus Email',
+                          labelText: 'Campus Email (.edu)',
                           prefixIcon: Icon(Icons.email_outlined),
                         ),
-                        validator: (v) => v == null || v.isEmpty
-                            ? 'Enter your campus email'
-                            : null,
+                        validator: (v) {
+                          if (v == null || v.isEmpty) {
+                            return 'Enter your campus email';
+                          }
+                          if (!v.endsWith('.edu')) {
+                            return 'Must be a .edu email address';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 14),
 
+                      // Password
                       TextFormField(
                         controller: _passwordCtrl,
                         obscureText: _obscurePassword,
@@ -176,6 +214,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             : null,
                       ),
 
+                      // Error banner
                       if (_error != null) ...[
                         const SizedBox(height: 14),
                         Container(
@@ -185,51 +224,75 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             color: cs.errorContainer,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Row(children: [
-                            Icon(Icons.error_outline,
-                                size: 18, color: cs.error),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(_error!,
+                          child: Row(
+                            children: [
+                              Icon(Icons.error_outline,
+                                  size: 18, color: cs.error),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _error!,
                                   style: TextStyle(
                                       color: cs.onErrorContainer,
-                                      fontSize: 13)),
-                            ),
-                          ]),
+                                      fontSize: 13),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
 
-                      const SizedBox(height: 24),
-                      FilledButton(
-                        onPressed: _loading ? null : _submit,
-                        child: _loading
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white))
-                            : const Text('Create Account',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 15)),
+                      const SizedBox(height: 28),
+
+                      // Register button
+                      SizedBox(
+                        height: 52,
+                        child: FilledButton(
+                          onPressed: _loading ? null : _submit,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF1A73E8),
+                            foregroundColor: Colors.white,
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          child: _loading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Create Account'),
+                        ),
                       ),
+
                       const SizedBox(height: 16),
 
+                      // Sign in link
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text('Already have an account? ',
-                              style: TextStyle(
-                                  color:
-                                      cs.onSurface.withValues(alpha: 0.6),
-                                  fontSize: 14)),
+                          Text(
+                            'Already have an account? ',
+                            style: TextStyle(
+                              color: cs.onSurface.withValues(alpha: 0.6),
+                              fontSize: 14,
+                            ),
+                          ),
                           GestureDetector(
                             onTap: () => Navigator.of(context).pop(),
-                            child: Text('Sign in',
-                                style: TextStyle(
-                                    color: cs.primary,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14)),
+                            child: const Text(
+                              'Sign In',
+                              style: TextStyle(
+                                color: Color(0xFF1A73E8),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ],
                       ),

@@ -7,30 +7,6 @@ import '../../models/user_model.dart';
 import '../../repositories/post_repository.dart';
 import '../../services/firestore_service.dart';
 
-const _tags = [
-  'general', 'academics', 'events', 'sports', 'clubs', 'housing', 'jobs',
-];
-
-const _tagIcons = {
-  'general': Icons.public,
-  'academics': Icons.school_outlined,
-  'events': Icons.event_outlined,
-  'sports': Icons.sports,
-  'clubs': Icons.groups_outlined,
-  'housing': Icons.home_outlined,
-  'jobs': Icons.work_outline,
-};
-
-const _tagColors = {
-  'general': Color(0xFF6B7280),
-  'academics': Color(0xFF1A73E8),
-  'events': Color(0xFF9C27B0),
-  'sports': Color(0xFF4CAF50),
-  'clubs': Color(0xFFFF9800),
-  'housing': Color(0xFF795548),
-  'jobs': Color(0xFF009688),
-};
-
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
 
@@ -44,6 +20,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   String _campusTag = 'general';
   bool _loading = false;
 
+  static const _tags = [
+    'general',
+    'academics',
+    'events',
+    'sports',
+    'clubs',
+    'housing',
+    'jobs',
+  ];
+
   @override
   void dispose() {
     _contentCtrl.dispose();
@@ -52,8 +38,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(
-        source: ImageSource.gallery, imageQuality: 85);
+    final picked = await picker.pickImage(source: ImageSource.gallery);
     if (picked != null) setState(() => _image = File(picked.path));
   }
 
@@ -82,254 +67,283 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser!.uid;
     final firestoreService = context.read<FirestoreService>();
-    final tagColor = _tagColors[_campusTag] ?? const Color(0xFF6B7280);
+    final cs = Theme.of(context).colorScheme;
 
-    return FutureBuilder<UserModel?>(
-      future: firestoreService.getUser(uid),
-      builder: (context, snap) {
-        final author = snap.data;
-        return Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            title: const Text('New Post',
-                style: TextStyle(fontWeight: FontWeight.w700)),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: FilledButton(
-                  onPressed: author != null && !_loading
-                      ? () => _submit(author)
-                      : null,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(72, 36),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 8),
-                  ),
-                  child: _loading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Text('Post',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-              ),
-            ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(1),
-              child: Container(height: 1, color: Colors.grey.shade100),
-            ),
-          ),
-          body: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Author row
-              if (author != null)
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor:
-                          const Color(0xFF1A73E8).withValues(alpha: 0.15),
-                      child: Text(
-                        author.displayName.isNotEmpty
-                            ? author.displayName[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                            color: Color(0xFF1A73E8),
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Create Post'),
+        centerTitle: true,
+        elevation: 0,
+      ),
+      body: FutureBuilder<UserModel?>(
+        future: firestoreService.getUser(uid),
+        builder: (context, snap) {
+          final author = snap.data;
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Author info ────────────────────────────────────────
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 22,
+                        backgroundColor: cs.primaryContainer,
+                        backgroundImage: author?.profilePhotoUrl != null &&
+                                author!.profilePhotoUrl.isNotEmpty
+                            ? NetworkImage(author.profilePhotoUrl)
+                            : null,
+                        child: author?.profilePhotoUrl == null ||
+                                author!.profilePhotoUrl.isEmpty
+                            ? Text(
+                                author?.displayName.isNotEmpty == true
+                                    ? author!.displayName[0].toUpperCase()
+                                    : '?',
+                                style: TextStyle(
+                                  color: cs.primary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 18,
+                                ),
+                              )
+                            : null,
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(author.displayName,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14)),
-                        const SizedBox(height: 2),
-                        // Tag selector pill
-                        GestureDetector(
-                          onTap: () => _showTagPicker(context),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: tagColor.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              author?.displayName ?? 'User',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(_tagIcons[_campusTag],
-                                    size: 12, color: tagColor),
-                                const SizedBox(width: 4),
-                                Text('#$_campusTag',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: tagColor)),
-                                const SizedBox(width: 3),
-                                Icon(Icons.arrow_drop_down,
-                                    size: 14, color: tagColor),
-                              ],
+                            const SizedBox(height: 2),
+                            Text(
+                              'Posting to campus',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: cs.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // ── Tag selector ────────────────────────────────────────
+                  Text(
+                    'Category',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: cs.onSurfaceVariant,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: DropdownButton<String>(
+                      value: _campusTag,
+                      isExpanded: true,
+                      underline: const SizedBox(),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      borderRadius: BorderRadius.circular(12),
+                      items: _tags
+                          .map((tag) => DropdownMenuItem(
+                                value: tag,
+                                child: Row(
+                                  children: [
+                                    _getTagIcon(tag, cs.primary),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      _formatTag(tag),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium,
+                                    ),
+                                  ],
+                                ),
+                              ))
+                          .toList(),
+                      onChanged: (v) =>
+                          setState(() => _campusTag = v ?? 'general'),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // ── Content input ────────────────────────────────────────
+                  Text(
+                    'What\'s happening on campus?',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: cs.onSurfaceVariant,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _contentCtrl,
+                    maxLines: 6,
+                    minLines: 4,
+                    textAlignVertical: TextAlignVertical.top,
+                    decoration: const InputDecoration(
+                      hintText: 'Share your thoughts, ask questions, or post updates...',
+                    ),
+                  ),
+
+                  // ── Image preview ────────────────────────────────────────
+                  if (_image != null) ...[
+                    const SizedBox(height: 16),
+                    Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.file(
+                            _image!,
+                            height: 200,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _image = null),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.6),
+                                shape: BoxShape.circle,
+                              ),
+                              padding: const EdgeInsets.all(6),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ),
                           ),
                         ),
                       ],
                     ),
                   ],
-                ),
 
-              const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-              // Text input
-              TextField(
-                controller: _contentCtrl,
-                maxLines: null,
-                minLines: 6,
-                style: const TextStyle(fontSize: 16, height: 1.5),
-                decoration: InputDecoration(
-                  hintText: "What's happening on campus?",
-                  hintStyle: TextStyle(
-                      color: Colors.grey.shade400, fontSize: 16),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  fillColor: Colors.transparent,
-                  filled: false,
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-
-              // Image preview
-              if (_image != null) ...[
-                const SizedBox(height: 12),
-                Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.file(_image!,
-                          width: double.infinity,
-                          height: 200,
-                          fit: BoxFit.cover),
-                    ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: GestureDetector(
-                        onTap: () => setState(() => _image = null),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.55),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.close,
-                              color: Colors.white, size: 16),
+                  // ── Image picker button ─────────────────────────────────
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: cs.outlineVariant),
+                          bottom: BorderSide(color: cs.outlineVariant),
                         ),
                       ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.image_outlined,
+                              color: cs.primary, size: 22),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Add photo',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: cs.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              ],
-
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 4),
-
-              // Action bar
-              Row(
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.image_outlined,
-                        color: Theme.of(context).colorScheme.primary),
-                    tooltip: 'Add Photo',
-                    onPressed: _pickImage,
                   ),
-                  Text('Add photo',
-                      style: TextStyle(
-                          color:
-                              Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13)),
+
+                  const SizedBox(height: 24),
+
+                  // ── Post button ──────────────────────────────────────────
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: FilledButton(
+                      onPressed:
+                          (_loading || author == null || _contentCtrl.text.trim().isEmpty)
+                              ? null
+                              : () => _submit(author),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: cs.primary,
+                        foregroundColor: cs.onPrimary,
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      child: _loading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Post'),
+                    ),
+                  ),
                 ],
               ),
-            ],
-          ),
-        );
-      },
+            ),
+          );
+        },
+      ),
     );
   }
 
-  void _showTagPicker(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Choose a tag',
-                style:
-                    TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _tags.map((tag) {
-                final color = _tagColors[tag]!;
-                final selected = tag == _campusTag;
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => _campusTag = tag);
-                    Navigator.of(context).pop();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? color
-                          : color.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(_tagIcons[tag],
-                            size: 14,
-                            color: selected ? Colors.white : color),
-                        const SizedBox(width: 6),
-                        Text('#$tag',
-                            style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color:
-                                    selected ? Colors.white : color)),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
+  String _formatTag(String tag) {
+    if (tag.isEmpty) return 'General';
+    final normalized = tag.trim().toLowerCase();
+    return normalized[0].toUpperCase() + normalized.substring(1);
+  }
+
+  Widget _getTagIcon(String tag, Color color) {
+    IconData icon;
+    switch (tag.toLowerCase()) {
+      case 'academics':
+        icon = Icons.school_outlined;
+        break;
+      case 'events':
+        icon = Icons.event_outlined;
+        break;
+      case 'sports':
+        icon = Icons.sports_outlined;
+        break;
+      case 'clubs':
+        icon = Icons.groups_outlined;
+        break;
+      case 'housing':
+        icon = Icons.home_outlined;
+        break;
+      case 'jobs':
+        icon = Icons.work_outline;
+        break;
+      default:
+        icon = Icons.public_outlined;
+    }
+    return Icon(icon, color: color, size: 20);
   }
 }

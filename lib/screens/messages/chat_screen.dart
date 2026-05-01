@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:timeago/timeago.dart' as timeago;
 import '../../models/message_model.dart';
 import '../../repositories/message_repository.dart';
 
@@ -31,9 +31,8 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    context
-        .read<MessageRepository>()
-        .markRead(widget.currentUid, widget.recipientUid);
+    context.read<MessageRepository>().markRead(
+          widget.currentUid, widget.recipientUid);
   }
 
   @override
@@ -58,7 +57,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (_scrollCtrl.hasClients) {
         _scrollCtrl.animateTo(
           _scrollCtrl.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 250),
+          duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
         );
       }
@@ -75,36 +74,29 @@ class _ChatScreenState extends State<ChatScreen> {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FF),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
         titleSpacing: 0,
         title: Row(
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor: cs.primary.withValues(alpha: 0.15),
+              backgroundColor: cs.primaryContainer,
               backgroundImage: photoUrl.isNotEmpty
                   ? CachedNetworkImageProvider(photoUrl)
                   : null,
               child: photoUrl.isEmpty
-                  ? Text(name[0].toUpperCase(),
+                  ? Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : '?',
                       style: TextStyle(
-                          color: cs.primary, fontWeight: FontWeight.w700))
+                          color: cs.primary, fontWeight: FontWeight.w700),
+                    )
                   : null,
             ),
             const SizedBox(width: 10),
-            Text(name,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w700, fontSize: 16)),
+            Text(name),
           ],
         ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: Colors.grey.shade100),
-        ),
+        centerTitle: false,
       ),
       body: Column(
         children: [
@@ -115,76 +107,69 @@ class _ChatScreenState extends State<ChatScreen> {
                 final messages = snap.data ?? [];
                 if (messages.isEmpty) {
                   return Center(
-                    child: Text('Say hello! 👋',
-                        style: TextStyle(
-                            color: Colors.grey.shade400, fontSize: 15)),
+                    child: Text(
+                      'Say hello! 👋',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                    ),
                   );
                 }
                 return ListView.builder(
                   controller: _scrollCtrl,
-                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                   itemCount: messages.length,
                   itemBuilder: (context, i) {
                     final msg = messages[i];
                     final isMe = msg.senderUid == widget.currentUid;
-                    final showTime = i == messages.length - 1 ||
-                        messages[i + 1].timestamp
-                                .difference(msg.timestamp)
+                    final prevMsg = i > 0 ? messages[i - 1] : null;
+                    final showTimestamp = prevMsg == null ||
+                        msg.timestamp
+                                .difference(prevMsg.timestamp)
                                 .inMinutes >
-                            10;
+                            5;
+
                     return Column(
+                      crossAxisAlignment: isMe
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
                       children: [
-                        if (showTime)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
+                        if (showTimestamp) ...[
+                          const SizedBox(height: 8),
+                          Center(
                             child: Text(
-                              timeago.format(msg.timestamp),
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade400),
+                              DateFormat('HH:mm').format(msg.timestamp),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(color: cs.onSurfaceVariant),
                             ),
                           ),
+                          const SizedBox(height: 8),
+                        ],
                         Align(
                           alignment: isMe
                               ? Alignment.centerRight
                               : Alignment.centerLeft,
                           child: Container(
-                            margin: EdgeInsets.only(
-                              bottom: 4,
-                              left: isMe ? 60 : 0,
-                              right: isMe ? 0 : 60,
-                            ),
+                            margin: const EdgeInsets.symmetric(vertical: 3),
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 14, vertical: 10),
+                            constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.75,
+                            ),
                             decoration: BoxDecoration(
                               color: isMe
                                   ? cs.primary
-                                  : Colors.white,
-                              borderRadius: BorderRadius.only(
-                                topLeft: const Radius.circular(18),
-                                topRight: const Radius.circular(18),
-                                bottomLeft:
-                                    Radius.circular(isMe ? 18 : 4),
-                                bottomRight:
-                                    Radius.circular(isMe ? 4 : 18),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black
-                                      .withValues(alpha: 0.04),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
+                                  : cs.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(18),
                             ),
                             child: Text(
                               msg.text,
                               style: TextStyle(
-                                color: isMe
-                                    ? Colors.white
-                                    : Colors.grey.shade800,
-                                fontSize: 14,
-                                height: 1.4,
+                                color: isMe ? cs.onPrimary : cs.onSurface,
+                                fontSize: 15,
                               ),
                             ),
                           ),
@@ -197,14 +182,16 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
 
-          // Input bar
+          // Message input bar
           Container(
-            color: Colors.white,
-            padding: EdgeInsets.only(
-              left: 12,
-              right: 8,
-              top: 10,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 10,
+            decoration: BoxDecoration(
+              color: cs.surface,
+              border: Border(
+                top: BorderSide(color: cs.outlineVariant, width: 0.5),
+              ),
+            ),
+            padding: EdgeInsets.fromLTRB(
+              12, 8, 8, MediaQuery.of(context).viewInsets.bottom + 8,
             ),
             child: Row(
               children: [
@@ -213,35 +200,32 @@ class _ChatScreenState extends State<ChatScreen> {
                     controller: _textCtrl,
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _send(),
-                    decoration: InputDecoration(
+                    maxLines: 1,
+                    decoration: const InputDecoration(
                       hintText: 'Message…',
-                      hintStyle:
-                          TextStyle(color: Colors.grey.shade400),
+                      contentPadding: EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
                       isDense: true,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 150),
-                  child: _sending
-                      ? const SizedBox(
-                          width: 40,
-                          height: 40,
-                          child: Center(
-                              child: SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2))))
-                      : IconButton(
-                          style: IconButton.styleFrom(
-                            backgroundColor: cs.primary,
-                            foregroundColor: Colors.white,
-                          ),
-                          icon: const Icon(Icons.send_rounded, size: 20),
-                          onPressed: _send,
-                        ),
+                SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    icon: _sending
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: cs.primary),
+                          )
+                        : Icon(Icons.send_rounded,
+                            size: 20, color: cs.primary),
+                    onPressed: _sending ? null : _send,
+                  ),
                 ),
               ],
             ),
