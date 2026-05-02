@@ -219,6 +219,48 @@ export const onPostLiked = onDocumentUpdated(
   }
 );
 
+// ── FCM: notify post author when someone comments ────────────────────────────
+
+export const onNewComment = onDocumentCreated(
+  "posts/{postId}/comments/{commentId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const comment = snap.data() as Record<string, unknown>;
+
+    const postId = event.params.postId;
+    const commenterUid = comment["authorUid"] as string;
+
+    const postSnap = await db.collection("posts").doc(postId).get();
+    const post = postSnap.data();
+    if (!post) return;
+
+    const authorUid = post["authorUid"] as string;
+    if (!authorUid || authorUid === commenterUid) return;
+
+    const [authorSnap, commenterSnap] = await Promise.all([
+      db.collection("users").doc(authorUid).get(),
+      db.collection("users").doc(commenterUid).get(),
+    ]);
+
+    const token = authorSnap.data()?.["fcmToken"] as string | undefined;
+    if (!token) return;
+
+    const commenterName =
+      (commenterSnap.data()?.["displayName"] as string) ?? "Someone";
+    const commentPreview = ((comment["text"] as string) ?? "").slice(0, 80);
+
+    await messaging.send({
+      token,
+      notification: {
+        title: `${commenterName} commented on your post`,
+        body: commentPreview,
+      },
+      data: { type: "comment", postId },
+    });
+  }
+);
+
 // ── FCM: notify on event RSVP ─────────────────────────────────────────────────
 
 export const onEventRsvp = onDocumentUpdated(

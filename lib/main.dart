@@ -15,7 +15,9 @@ import 'repositories/message_repository.dart';
 import 'repositories/event_repository.dart';
 import 'repositories/club_repository.dart';
 import 'repositories/study_match_repository.dart';
+import 'models/user_model.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/auth/onboarding_screen.dart';
 import 'screens/feed/feed_screen.dart';
 import 'screens/messages/messages_screen.dart';
 import 'screens/events/events_screen.dart';
@@ -136,6 +138,39 @@ class UniVibeApp extends StatelessWidget {
             ),
             color: Colors.white,
           ),
+          appBarTheme: const AppBarTheme(
+            elevation: 0,
+            scrolledUnderElevation: 0.5,
+            centerTitle: false,
+            titleTextStyle: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+            ),
+            iconTheme: IconThemeData(color: Colors.black87),
+          ),
+          chipTheme: ChipThemeData(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+          floatingActionButtonTheme: const FloatingActionButtonThemeData(
+            elevation: 2,
+            highlightElevation: 4,
+          ),
+          navigationBarTheme: NavigationBarThemeData(
+            indicatorColor: const Color(0xFF1A73E8).withValues(alpha: 0.18),
+            labelTextStyle: WidgetStateProperty.resolveWith((states) {
+              final selected = states.contains(WidgetState.selected);
+              return TextStyle(
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected
+                    ? const Color(0xFF1A73E8)
+                    : Colors.black.withValues(alpha: 0.6),
+              );
+            }),
+          ),
         ),
         home: const _AuthGate(),
       ),
@@ -157,9 +192,45 @@ class _AuthGate extends StatelessWidget {
           );
         }
         if (snapshot.hasData) {
-          return const MainShell();
+          // Once Firebase Auth is ready, check whether this user has finished
+          // onboarding. New accounts created before the onboarding flow existed
+          // are treated as already-onboarded so we don't bug them on every login.
+          return _OnboardingGate(uid: snapshot.data!.uid);
         }
         return const LoginScreen();
+      },
+    );
+  }
+}
+
+/// Decides whether a freshly-authenticated user should see the onboarding
+/// wizard or jump straight into the main app shell. Streams the user doc so
+/// the gate flips automatically when the user finishes onboarding.
+class _OnboardingGate extends StatelessWidget {
+  final String uid;
+  const _OnboardingGate({required this.uid});
+
+  @override
+  Widget build(BuildContext context) {
+    final firestore = context.read<FirestoreService>();
+    return StreamBuilder<UserModel>(
+      stream: firestore.userStream(uid),
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final user = snap.data!;
+        // Treat anyone with a non-empty profile (bio/courses/photo) as already
+        // onboarded — this covers users created before the onboarding flag.
+        final legacyComplete = user.bio.isNotEmpty ||
+            user.courses.isNotEmpty ||
+            user.profilePhotoUrl.isNotEmpty;
+        if (user.onboardingComplete || legacyComplete) {
+          return const MainShell();
+        }
+        return const OnboardingScreen();
       },
     );
   }

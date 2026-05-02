@@ -8,6 +8,7 @@ import '../../models/user_model.dart';
 import '../../repositories/message_repository.dart';
 import '../../services/firestore_service.dart';
 import 'chat_screen.dart';
+import 'new_conversation_screen.dart';
 
 class MessagesScreen extends StatelessWidget {
   const MessagesScreen({super.key});
@@ -23,13 +24,36 @@ class MessagesScreen extends StatelessWidget {
         title: const Text('Messages'),
         centerTitle: true,
       ),
-      body: StreamBuilder<List<MessageThreadModel>>(
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: cs.primary,
+        foregroundColor: cs.onPrimary,
+        icon: const Icon(Icons.edit_rounded),
+        label: const Text('New'),
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => NewConversationScreen(currentUid: uid),
+          ),
+        ),
+      ),
+      body: StreamBuilder<UserModel>(
+        stream: context.read<FirestoreService>().userStream(uid),
+        builder: (context, meSnap) {
+          final blocked = meSnap.data?.blockedUsers.toSet() ?? <String>{};
+          return StreamBuilder<List<MessageThreadModel>>(
         stream: repo.threadsStream(uid),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          final threads = snap.data ?? [];
+          final allThreads = snap.data ?? [];
+          // Hide threads where the only other participant is blocked.
+          final threads = allThreads.where((t) {
+            final other = t.participants.firstWhere(
+              (p) => p != uid,
+              orElse: () => uid,
+            );
+            return !blocked.contains(other);
+          }).toList();
           if (threads.isEmpty) {
             return Center(
               child: Padding(
@@ -89,6 +113,8 @@ class MessagesScreen extends StatelessWidget {
               );
             },
           );
+        },
+      );
         },
       ),
     );

@@ -32,6 +32,32 @@ class FirestoreService {
   Future<void> updateFcmToken(String uid, String token) =>
       _db.collection('users').doc(uid).update({'fcmToken': token});
 
+  /// Streams every user. Discover/search filters happen client-side
+  /// (legacy users without `discoverStatus` are treated as public).
+  Stream<List<UserModel>> allUsersStream() => _db
+      .collection('users')
+      .orderBy('displayName')
+      .snapshots()
+      .map((snap) => snap.docs.map(UserModel.fromFirestore).toList());
+
+  Future<void> blockUser(String currentUid, String targetUid) =>
+      _db.collection('users').doc(currentUid).update({
+        'blockedUsers': FieldValue.arrayUnion([targetUid]),
+      });
+
+  Future<void> unblockUser(String currentUid, String targetUid) =>
+      _db.collection('users').doc(currentUid).update({
+        'blockedUsers': FieldValue.arrayRemove([targetUid]),
+      });
+
+  Future<void> setDiscoverStatus(String uid, String status) =>
+      _db.collection('users').doc(uid).update({'discoverStatus': status});
+
+  /// Hard-delete the user's profile document. Caller is responsible for
+  /// also deleting the FirebaseAuth account (which requires a recent login).
+  Future<void> deleteUserProfile(String uid) =>
+      _db.collection('users').doc(uid).delete();
+
   // ── Posts ──────────────────────────────────────────────────────────────────
 
   Stream<List<PostModel>> feedStream({int limit = 30}) => _db
