@@ -30,6 +30,8 @@ dependencies:
   flutter_local_notifications: ^18.0.0
   timeago: ^3.7.0
 
+  flutter_launcher_icons: ^0.14.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -38,5 +40,15 @@ dev_dependencies:
   build_runner: ^2.4.13
   fake_cloud_firestore: ^3.0.3
 
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#1A73E8"
+  adaptive_icon_foreground: "assets/icon/icon.png"
+
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon/
