@@ -38,6 +38,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             password: _passwordCtrl.text,
             displayName: _nameCtrl.text.trim(),
           );
+      // Pop all pushed routes back to the root _AuthGate, which has already
+      // rebuilt to show MainShell now that Firebase auth emitted the new user.
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -71,9 +74,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
                         Container(
                           width: 68,
                           height: 68,
@@ -107,12 +112,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const SizedBox(height: 5),
                         Text(
                           'Create your campus account',
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.85),
                             fontSize: 14,
                           ),
                         ),
                       ],
+                    ),
                     ),
                   ),
                 ],
