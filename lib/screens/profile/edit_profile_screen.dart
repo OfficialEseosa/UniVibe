@@ -27,11 +27,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu',
     'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun',
   };
-  static const _slots = ['morning', 'afternoon', 'evening'];
+  static const _slots = [
+    '7-9am', '9-11am', '11am-1pm', '1-3pm', '3-5pm', '5-7pm', '7-9pm', '9-11pm',
+  ];
   static const _slotLabels = {
-    'morning': 'Morning\n8am–12pm',
-    'afternoon': 'Afternoon\n12pm–5pm',
-    'evening': 'Evening\n5pm–9pm',
+    '7-9am':    '7–9 AM',
+    '9-11am':   '9–11 AM',
+    '11am-1pm': '11AM–1PM',
+    '1-3pm':    '1–3 PM',
+    '3-5pm':    '3–5 PM',
+    '5-7pm':    '5–7 PM',
+    '7-9pm':    '7–9 PM',
+    '9-11pm':   '9–11 PM',
   };
 
   late Map<String, Set<String>> _availability;

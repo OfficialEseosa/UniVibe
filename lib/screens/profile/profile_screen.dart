@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/user_model.dart';
 import '../../repositories/auth_repository.dart';
 import '../../services/firestore_service.dart';
+import '../../services/storage_service.dart';
 import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -16,9 +17,15 @@ class ProfileScreen extends StatelessWidget {
     'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun',
   };
   static const _slotLabels = {
-    'morning': 'Morning',
-    'afternoon': 'Afternoon',
-    'evening': 'Evening',
+    '7-9am':    '7–9 AM',
+    '9-11am':   '9–11 AM',
+    '11am-1pm': '11AM–1PM',
+    '1-3pm':    '1–3 PM',
+    '3-5pm':    '3–5 PM',
+    '5-7pm':    '5–7 PM',
+    '7-9pm':    '7–9 PM',
+    '9-11pm':   '9–11 PM',
+    'morning': 'Morning', 'afternoon': 'Afternoon', 'evening': 'Evening',
   };
 
   @override
@@ -292,7 +299,7 @@ class ProfileScreen extends StatelessWidget {
           builder: (ctx) => AlertDialog(
             title: const Text('Delete account?'),
             content: const Text(
-                'This permanently removes your profile, posts will keep your name as the author. You will need to re-register to use UniVibe again.\n\nIf you signed in a while ago you may need to log out and back in for security reasons.'),
+                'This permanently removes your profile AND all your posts. This cannot be undone.\n\nIf you signed in a while ago you may need to log out and back in for security reasons.'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(false),
@@ -301,13 +308,24 @@ class ProfileScreen extends StatelessWidget {
               FilledButton(
                 onPressed: () => Navigator.of(ctx).pop(true),
                 style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('Delete'),
+                child: const Text('Delete Everything'),
               ),
             ],
           ),
         );
         if (confirm != true) return;
         try {
+          final storage = context.read<StorageService>();
+          // Delete all posts + collect image URLs
+          final imageUrls = await firestore.deleteAllPostsByUser(user.uid);
+          // Delete post images from Storage
+          for (final url in imageUrls) {
+            try { await storage.deleteFile(url); } catch (_) {}
+          }
+          // Delete profile photo from Storage
+          if (user.profilePhotoUrl.isNotEmpty) {
+            try { await storage.deleteFile(user.profilePhotoUrl); } catch (_) {}
+          }
           await firestore.deleteUserProfile(user.uid);
           await FirebaseAuth.instance.currentUser?.delete();
         } on FirebaseAuthException catch (e) {
@@ -318,13 +336,11 @@ class ProfileScreen extends StatelessWidget {
                   : 'Failed to delete account: ${e.message}'),
             ));
           }
-          // Profile doc is already gone — sign the user out so the app
-          // doesn't keep trying to read it.
           await FirebaseAuth.instance.signOut();
         } catch (e) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error deleting account: $e')));
+                SnackBar(content: Text('Error: $e')));
           }
         }
         break;

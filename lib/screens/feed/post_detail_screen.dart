@@ -11,7 +11,12 @@ import '../../services/firestore_service.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final PostModel post;
-  const PostDetailScreen({super.key, required this.post});
+  final bool autoFocusComment;
+  const PostDetailScreen({
+    super.key,
+    required this.post,
+    this.autoFocusComment = false,
+  });
 
   @override
   State<PostDetailScreen> createState() => _PostDetailScreenState();
@@ -19,11 +24,23 @@ class PostDetailScreen extends StatefulWidget {
 
 class _PostDetailScreenState extends State<PostDetailScreen> {
   final _commentCtrl = TextEditingController();
+  final _focusNode = FocusNode();
   bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoFocusComment) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _focusNode.requestFocus();
+      });
+    }
+  }
 
   @override
   void dispose() {
     _commentCtrl.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -405,6 +422,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       Expanded(
                         child: TextField(
                           controller: _commentCtrl,
+                          focusNode: _focusNode,
                           textInputAction: TextInputAction.send,
                           onSubmitted: (text) =>
                               author == null ? null : _submitComment(author),

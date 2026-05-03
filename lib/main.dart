@@ -87,11 +87,15 @@ class UniVibeApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFF1A73E8),
             brightness: Brightness.light,
+          ).copyWith(
+            surface: const Color(0xFFF0F2F5), // Facebook-style light gray bg
+            onSurface: const Color(0xFF1C1E21),
           ),
           useMaterial3: true,
+          scaffoldBackgroundColor: const Color(0xFFF0F2F5),
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
-            fillColor: const Color(0xFFF1F6FF),
+            fillColor: const Color(0xFFF0F2F5),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
@@ -120,8 +124,7 @@ class UniVibeApp extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
-              padding:
-                  const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(vertical: 14),
             ),
           ),
           filledButtonTheme: FilledButtonThemeData(
@@ -131,23 +134,25 @@ class UniVibeApp extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
           ),
-          cardTheme: CardThemeData(
+          cardTheme: const CardThemeData(
             elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
+            margin: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(),
             color: Colors.white,
           ),
           appBarTheme: const AppBarTheme(
             elevation: 0,
-            scrolledUnderElevation: 0.5,
+            scrolledUnderElevation: 1,
+            backgroundColor: Color(0xFF1A73E8),
+            foregroundColor: Colors.white,
             centerTitle: false,
             titleTextStyle: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.3,
             ),
-            iconTheme: IconThemeData(color: Colors.black87),
+            iconTheme: IconThemeData(color: Colors.white),
           ),
           chipTheme: ChipThemeData(
             shape: RoundedRectangleBorder(
@@ -159,15 +164,25 @@ class UniVibeApp extends StatelessWidget {
             highlightElevation: 4,
           ),
           navigationBarTheme: NavigationBarThemeData(
-            indicatorColor: const Color(0xFF1A73E8).withValues(alpha: 0.18),
+            backgroundColor: Colors.white,
+            shadowColor: Colors.black26,
+            elevation: 8,
+            indicatorColor: const Color(0xFF1A73E8).withValues(alpha: 0.14),
             labelTextStyle: WidgetStateProperty.resolveWith((states) {
               final selected = states.contains(WidgetState.selected);
               return TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 color: selected
                     ? const Color(0xFF1A73E8)
-                    : Colors.black.withValues(alpha: 0.6),
+                    : Colors.black54,
+              );
+            }),
+            iconTheme: WidgetStateProperty.resolveWith((states) {
+              final selected = states.contains(WidgetState.selected);
+              return IconThemeData(
+                color: selected ? const Color(0xFF1A73E8) : Colors.black54,
+                size: 24,
               );
             }),
           ),

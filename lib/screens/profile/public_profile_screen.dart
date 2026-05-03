@@ -18,9 +18,16 @@ class PublicProfileScreen extends StatelessWidget {
     'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun',
   };
   static const _slotLabels = {
-    'morning': 'Morning',
-    'afternoon': 'Afternoon',
-    'evening': 'Evening',
+    '7-9am':    '7–9 AM',
+    '9-11am':   '9–11 AM',
+    '11am-1pm': '11AM–1PM',
+    '1-3pm':    '1–3 PM',
+    '3-5pm':    '3–5 PM',
+    '5-7pm':    '5–7 PM',
+    '7-9pm':    '7–9 PM',
+    '9-11pm':   '9–11 PM',
+    // legacy values still map gracefully
+    'morning': 'Morning', 'afternoon': 'Afternoon', 'evening': 'Evening',
   };
 
   @override

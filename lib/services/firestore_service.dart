@@ -15,8 +15,49 @@ class FirestoreService {
 
   // ── Users ──────────────────────────────────────────────────────────────────
 
-  Future<void> updateUserProfile(UserModel user) =>
-      _db.collection('users').doc(user.uid).update(user.toFirestore());
+  Future<void> updateUserProfile(UserModel user) async {
+    await _db.collection('users').doc(user.uid).update(user.toFirestore());
+    // Keep post author photos in sync so the feed always shows the latest photo.
+    if (user.profilePhotoUrl.isNotEmpty) {
+      await _updateAuthorPhotoOnPosts(user.uid, user.profilePhotoUrl);
+    }
+  }
+
+  Future<void> _updateAuthorPhotoOnPosts(String uid, String photoUrl) async {
+    final snap = await _db
+        .collection('posts')
+        .where('authorUid', isEqualTo: uid)
+        .get();
+    if (snap.docs.isEmpty) return;
+    final batch = _db.batch();
+    for (final doc in snap.docs) {
+      batch.update(doc.reference, {'authorPhotoUrl': photoUrl});
+    }
+    await batch.commit();
+  }
+
+  /// Delete all posts (+ sub-collections) authored by [uid].
+  /// Images are NOT deleted from Storage here — call deleteUserContent instead.
+  Future<List<String>> deleteAllPostsByUser(String uid) async {
+    final snap = await _db
+        .collection('posts')
+        .where('authorUid', isEqualTo: uid)
+        .get();
+    final imageUrls = <String>[];
+    final batch = _db.batch();
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      if (data['imageUrl'] is String) imageUrls.add(data['imageUrl'] as String);
+      // Delete comments sub-collection docs
+      final comments = await doc.reference.collection('comments').get();
+      for (final c in comments.docs) {
+        batch.delete(c.reference);
+      }
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+    return imageUrls;
+  }
 
   Stream<UserModel> userStream(String uid) => _db
       .collection('users')

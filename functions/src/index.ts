@@ -219,6 +219,32 @@ export const onPostLiked = onDocumentUpdated(
   }
 );
 
+// ── One-time migration: clear legacy availability fields for all users ────────
+
+export const migrateAvailability = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be signed in.");
+  }
+  const snap = await db.collection("users").get();
+  const batch = db.batch();
+  let count = 0;
+  for (const doc of snap.docs) {
+    const avail = doc.data()["availability"];
+    if (!avail || typeof avail !== "object") continue;
+    const keys = Object.keys(avail as object);
+    const hasLegacy = keys.some((k) =>
+      ["morning", "afternoon", "evening"].includes(k)
+    );
+    if (hasLegacy) {
+      // Wipe the availability so user re-fills with the new time slots
+      batch.update(db.collection("users").doc(doc.id), { availability: {} });
+      count++;
+    }
+  }
+  await batch.commit();
+  return { migrated: count };
+});
+
 // ── FCM: notify post author when someone comments ────────────────────────────
 
 export const onNewComment = onDocumentCreated(
