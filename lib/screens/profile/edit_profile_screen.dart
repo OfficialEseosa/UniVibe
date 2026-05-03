@@ -18,7 +18,8 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _bioCtrl;
-  late final TextEditingController _coursesCtrl;
+  late final TextEditingController _courseInputCtrl;
+  late List<String> _courses;
   File? _newPhoto;
   bool _saving = false;
 
@@ -48,7 +49,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.user.displayName);
     _bioCtrl = TextEditingController(text: widget.user.bio);
-    _coursesCtrl = TextEditingController(text: widget.user.courses.join(', '));
+    _courseInputCtrl = TextEditingController();
+    _courses = List<String>.from(widget.user.courses);
     _availability = _parseAvailability(widget.user.availability);
   }
 
@@ -78,7 +80,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void dispose() {
     _nameCtrl.dispose();
     _bioCtrl.dispose();
-    _coursesCtrl.dispose();
+    _courseInputCtrl.dispose();
     super.dispose();
   }
 
@@ -98,17 +100,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         photoUrl = await storage.uploadProfilePhoto(widget.user.uid, _newPhoto!);
       }
 
-      final courses = _coursesCtrl.text
-          .split(',')
-          .map((c) => c.trim())
-          .where((c) => c.isNotEmpty)
-          .toList();
-
       final updated = widget.user.copyWith(
         displayName: _nameCtrl.text.trim(),
         bio: _bioCtrl.text.trim(),
         profilePhotoUrl: photoUrl,
-        courses: courses,
+        courses: _courses,
         availability: _buildAvailabilityMap(),
       );
 
@@ -257,13 +253,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Courses
-          TextField(
-            controller: _coursesCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Courses',
-              hintText: 'CSC 4360, MATH 2420, BIO 1100',
-            ),
+          // Courses chip input
+          CourseChipInput(
+            courses: _courses,
+            controller: _courseInputCtrl,
+            onAdd: (course) => setState(() => _courses.add(course)),
+            onRemove: (course) => setState(() => _courses.remove(course)),
           ),
           const SizedBox(height: 28),
 
@@ -301,6 +296,139 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               )),
         ],
       ),
+    );
+  }
+}
+
+// ── Reusable course chip input ────────────────────────────────────────────────
+
+class CourseChipInput extends StatelessWidget {
+  final List<String> courses;
+  final TextEditingController controller;
+  final void Function(String) onAdd;
+  final void Function(String) onRemove;
+
+  const CourseChipInput({
+    super.key,
+    required this.courses,
+    required this.controller,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  void _tryAdd() {
+    final text = controller.text.trim().toUpperCase();
+    if (text.isEmpty) return;
+    if (!courses.contains(text)) onAdd(text);
+    controller.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Label
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            children: [
+              Icon(Icons.menu_book_rounded, size: 18, color: cs.primary),
+              const SizedBox(width: 8),
+              Text('Courses',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: cs.onSurface)),
+            ],
+          ),
+        ),
+        // Input row
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                textCapitalization: TextCapitalization.characters,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _tryAdd(),
+                decoration: InputDecoration(
+                  hintText: 'e.g. CSC 4360',
+                  prefixIcon: const Icon(Icons.add_rounded),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            FilledButton(
+              onPressed: _tryAdd,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 18, vertical: 14),
+              ),
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+        if (courses.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: courses.map((course) {
+              return AnimatedScale(
+                scale: 1.0,
+                duration: const Duration(milliseconds: 150),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  padding: const EdgeInsets.only(
+                      left: 14, top: 6, bottom: 6, right: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        course,
+                        style: TextStyle(
+                          color: cs.onPrimaryContainer,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: () => onRemove(course),
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: cs.primary.withValues(alpha: 0.18),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.close_rounded,
+                              size: 13, color: cs.primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ] else ...[
+          const SizedBox(height: 10),
+          Text(
+            'No courses added yet. Type a course code and tap Add.',
+            style: TextStyle(
+                fontSize: 12.5, color: cs.onSurfaceVariant),
+          ),
+        ],
+      ],
     );
   }
 }

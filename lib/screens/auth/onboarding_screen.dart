@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../services/firestore_service.dart';
 import '../../services/storage_service.dart';
+import '../profile/edit_profile_screen.dart' show CourseChipInput;
 
 /// Three-step onboarding wizard shown immediately after registration.
 /// Collects bio + photo, courses, and weekly availability so the user
@@ -19,7 +20,8 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final _pageCtrl = PageController();
   final _bioCtrl = TextEditingController();
-  final _coursesCtrl = TextEditingController();
+  final _courseInputCtrl = TextEditingController();
+  final List<String> _courses = [];
   File? _photo;
   int _step = 0;
   bool _saving = false;
@@ -52,7 +54,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void dispose() {
     _pageCtrl.dispose();
     _bioCtrl.dispose();
-    _coursesCtrl.dispose();
+    _courseInputCtrl.dispose();
     super.dispose();
   }
 
@@ -106,11 +108,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         photoUrl = await storage.uploadProfilePhoto(uid, _photo!);
       }
 
-      final courses = _coursesCtrl.text
-          .split(',')
-          .map((c) => c.trim())
-          .where((c) => c.isNotEmpty)
-          .toList();
+      final courses = List<String>.from(_courses);
 
       final availability = <String, dynamic>{};
       for (final day in _days) {
@@ -370,36 +368,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             style: TextStyle(color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: 22),
-          TextField(
-            controller: _coursesCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Your courses',
-              hintText: 'CSC 4360, MATH 2420, BIO 1100',
-              prefixIcon: Icon(Icons.school_outlined),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: cs.primaryContainer.withValues(alpha: 0.45),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.lightbulb_rounded, color: cs.primary, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Separate course codes with commas. You can update these any time.',
-                    style: TextStyle(
-                      color: cs.onPrimaryContainer,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          CourseChipInput(
+            courses: _courses,
+            controller: _courseInputCtrl,
+            onAdd: (c) => setState(() => _courses.add(c)),
+            onRemove: (c) => setState(() => _courses.remove(c)),
           ),
         ],
       ),
