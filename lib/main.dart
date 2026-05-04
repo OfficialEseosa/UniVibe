@@ -231,6 +231,17 @@ class _OnboardingGate extends StatelessWidget {
     return StreamBuilder<UserModel>(
       stream: firestore.userStream(uid),
       builder: (context, snap) {
+        // Stream errored — most likely the user document was deleted while the
+        // Auth session was still alive (e.g. a partial account-deletion). Sign
+        // out so _AuthGate rebuilds to LoginScreen and the user gets a clean slate.
+        if (snap.hasError) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            FirebaseAuth.instance.signOut();
+          });
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
         if (!snap.hasData) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),

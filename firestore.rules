@@ -79,10 +79,13 @@ service cloud.firestore {
           && isParticipant(
                get(/databases/$(database)/documents/messages/$(threadId)).data.participants
              );
+        // Use getAfter() so that the first message in a brand-new thread works:
+        // the thread doc is created in the same transaction, so get() would see
+        // it as non-existent, but getAfter() sees the post-commit state.
         allow create: if isSignedIn()
           && request.resource.data.senderUid == request.auth.uid
           && isParticipant(
-               get(/databases/$(database)/documents/messages/$(threadId)).data.participants
+               getAfter(/databases/$(database)/documents/messages/$(threadId)).data.participants
              );
         allow update, delete: if false;
       }
